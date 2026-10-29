@@ -1,5 +1,7 @@
 # sagit-ios-port
 
+**中文** | [English](README.en.md)
+
 在小米 6（sagit / Snapdragon 835）上运行 iPadOS 18.7.10 用户态的研究性移植。
 *Porting the iPadOS 18.7.10 userland onto a Xiaomi Mi 6 by running XNU on the bare metal.*
 
