@@ -1,3 +1,7 @@
 * text=auto eol=lf
 *.sh text eol=lf
 *.py text eol=lf
+
+# patches are line sensitive: never let git rewrite their endings
+*.patch -text
+patches/** -text
