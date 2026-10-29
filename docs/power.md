@@ -159,7 +159,7 @@ CPU 离线后再次上线、丢失样本或策略重置时，会丢弃边界之�
 ### 回调注册所有权与内核要求
 
 原生 `sched_perfcontrol_register_callbacks()` 没有“仅在空闲时注册”的返回值。
-本地 XNU 增加以下私有扩展，补丁为 `tools/patches/xnu-perfcontrol-policy.patch`：
+本地 XNU 增加以下私有扩展，补丁为 `patches/xnu/xnu-perfcontrol-policy.patch`：
 
 - `sched_perfcontrol_register_callbacks_exclusive`：配置线程中的互斥注册；仅接受
   v5 且所有原生 callback slot 均为默认值，不覆盖已安装的 Apple 性能策略。

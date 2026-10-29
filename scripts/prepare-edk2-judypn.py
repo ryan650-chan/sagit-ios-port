@@ -80,13 +80,13 @@ def main():
     child(REPO / 'GPLDrivers/Library/SimpleInit', 'libs/freetype',
           SEED / 'GPLDrivers/Library/simple-init/libs/freetype')
     # The V40 follow-up changes context in the original application's patch.
-    extra = ROOT / 'tools/patches/edk2-judypn/edk2-fastboot-session.patch'
+    extra = ROOT / 'patches/edk2/edk2-judypn/edk2-fastboot-session.patch'
     followup_applied = extra.exists() and subprocess.run(
         ['git', '-C', str(edk), 'apply', '--reverse', '--check', str(extra)],
         capture_output=True).returncode == 0
     if not followup_applied:
-        apply(edk, ROOT / 'tools/patches/edk2-sagit/edk2-fastboot-app.patch')
-    patches = sorted((ROOT / 'tools/patches/edk2-judypn').glob('000*.patch'))
+        apply(edk, ROOT / 'patches/edk2/edk2-sagit/edk2-fastboot-app.patch')
+    patches = sorted((ROOT / 'patches/edk2/edk2-judypn').glob('000*.patch'))
     for patch in patches:
         apply(REPO, patch)
     # Additional application fixes apply only in this independent core checkout.

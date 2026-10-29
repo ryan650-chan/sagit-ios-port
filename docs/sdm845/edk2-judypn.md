@@ -23,7 +23,7 @@ make verify-edk2-judypn
 | 路径 | 用途 |
 | --- | --- |
 | `boot/edk2-sdm845` | V40 上游源码及独立子依赖 |
-| `tools/patches/edk2-judypn` | V40 平台及无串口会话补丁 |
+| `patches/edk2/edk2-judypn` | V40 平台及无串口会话补丁 |
 | `build/edk2-judypn/workspace` | V40 构建中间文件 |
 | `build/edk2-judypn/boot-judypn.img` | Android boot v1 镜像 |
 | `build/edk2-judypn/uefi-judypn.fd` | 7 MiB EDK2 FD |
@@ -35,7 +35,7 @@ make verify-edk2-judypn
 | `build/edk2-judypn/logs/build.log` | 构建日志 |
 
 Mi 6 原有的 `boot/edk2-msm8998`、`scripts/build-sagit.sh`、
-`tools/patches/edk2-sagit` 和 `build/edk2-sagit` 保持原样。
+`patches/edk2/edk2-sagit` 和 `build/edk2-sagit` 保持原样。
 V40 不把 Mi 6 的源码、Conf、BaseTools、SimpleInit 生成目录或工作区做成可写共享链接，
 也不使用 Git alternates。两者只复用现有编译器包装脚本及相同补丁内容。
 构建前保存 Mi 6 源码、版本、脚本、补丁和 boot/FD 产物的哈希基线；构建后逐个比对。
@@ -65,7 +65,7 @@ Git tree 中的 gitlink 为准。没有直接让 V40 使用 Mi 6 的板级内存
 | Android boot 包装 | 保留 V40 上游 v1、Android 9.0.0 / 2020-09 字段；不套用 sagit v0 配置 |
 | UARTDM 双向串口 / Shell | 按要求不移植；保持屏幕输出和 Shell |
 | Qualcomm USB Fastboot 驻留 | 复用现有 QcomFastboot 传输实现，接入 SDM845 驱动和 V40 启动管理器 |
-| 最大 64 MiB 下载、8 位 DATA 长度、CRC32 | 复用 `tools/patches/edk2-sagit/edk2-fastboot-app.patch`，仅应用到 V40 的 EDK2 副本 |
+| 最大 64 MiB 下载、8 位 DATA 长度、CRC32 | 复用 `patches/edk2/edk2-sagit/edk2-fastboot-app.patch`，仅应用到 V40 的 EDK2 副本 |
 | `oem run-efi` | 保留 LoadImage / StartImage / UnloadImage；返回后重启 Fastboot 会话，适合没有串口的设备 |
 | boot 原始镜像写入和写后读回 | 支持 `boot_a` / `boot_b` 和原始 boot v0/v1；按 GPT 动态找到 UFS LUN，校验两级 CRC、范围、容量和对齐 |
 

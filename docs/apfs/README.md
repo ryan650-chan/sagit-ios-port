@@ -45,7 +45,7 @@ make test-apfs
 
 bootstrap 固定源代码提交和 Go/ipsw 归档哈希，按补丁的正反向检查决定是否应用；
 构建不使用参考项目的路径。第三方许可与版本记录在 `tools/apfs-tools.json`。
-本项目扩展是 `tools/apfs-image`，第三方修改在 `tools/patches/go-apfs-*.patch`。
+本项目扩展是 `tools/apfs-image`，第三方修改在 `patches/go-apfs/go-apfs-*.patch`。
 
 writer 从固件 APFS 直接流式复制数据，不先完整解包到主机目录；保留 uid/gid、
 权限、set-ID/sticky 位、四种时间、BSD flags、硬链接、符号链接和扩展属性。
@@ -306,7 +306,7 @@ delta 为 `APFSPAT1`：8 字节 magic、两个 LE uint64（文件大小、记录
 读回。回归覆盖首次和再次补丁、相邻块跨新旧 extent 边界、提交前旧版本仍可读、
 Data 不变，以及来源哈希/旧字节错误时拒绝生成可提交结果。
 
-检查器另有 `tools/patches/apfsprogs-ios18-native-metadata.patch`，bootstrap 自动重放。
+检查器另有 `patches/apfsprogs/apfsprogs-ios18-native-metadata.patch`，bootstrap 自动重放。
 这是依据本设备 iOS 18 原始 Data 的 199 条记录新增的限定支持：只有 synthetic
 purgeable 目录（parent inode 7）中的精确 `0xc004` 编码被识别为 purgeable 标记。
 其他保留标志仍拒绝；索引成员必须设置 IS_PURGEABLE，分配大小构成的名称、所有权、链接

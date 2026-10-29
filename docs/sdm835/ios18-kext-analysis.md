@@ -145,7 +145,7 @@ AppleARMPlatform 同时包含 AppleARMPE、AppleARMCPU、NOR NVRAM 等 personali
 ARMv8-A + CRC + AES/SHA1/SHA256 的指令改为直接 `B` 跳转到
 KC 内核的 `__ARMV8_EXEC` 段，再跳回下一条指令。内核提供该段的页表映射，
 生成 KC 时写入降级辅助函数；无需非法指令异常模拟，也不在启动时修改代码。
-源代码补丁为 `tools/patches/zzzzzz-sdm835-armv8-aot.patch`。
+源代码补丁为 `patches/xnu/zzzzzz-sdm835-armv8-aot.patch`。
 
 当前默认平台输出包含 21 个原厂组件及 7 个本地驱动，共 28 个 Kext，
 25,395,200 字节，SHA-256：
@@ -203,7 +203,7 @@ C++ 运行时及 IOMachPort 初始化完成。最后日志为
 `IODeviceTreeAlloc(dtRoot)` 与 `IOService::init(dt, gIODTPlane)`。
 这尚未进入原厂 corecrypto 启动/POST，因此不把真机交接成功算作密码辅助函数已在真机完成验证。
 15 秒看门狗正常恢复到 EDK2 Fastboot，未刷写分区。
-阶段日志补丁为 `tools/patches/zzzzzzz-sdm835-iokit-trace.patch`。
+阶段日志补丁为 `patches/xnu/zzzzzzz-sdm835-iokit-trace.patch`。
 
 后续真机细分日志定位到 `IODTMapOneInterrupt(timer)`：Linux DTS 的
 `interrupt-parent` 继承没有转换成 XNU 要求的节点级属性，解析普通父节点时循环。

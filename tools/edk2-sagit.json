@@ -6,7 +6,7 @@
       "url": "https://github.com/edk2-porting/edk2-msm8998.git",
       "commit": "ace27110b9b9b6c591387d50cf748ec646402b4a",
       "patch": {
-        "file": "tools/patches/edk2-sagit/source-snapshot.patch",
+        "file": "patches/edk2/edk2-sagit/source-snapshot.patch",
         "sha256": "347e130b34ceef0af38ee1d39d135bb8b35c3a00985ae5ce70238fc50d0ba481",
         "source_files": [
           "Config/sagit.conf",
@@ -34,7 +34,7 @@
           "Platforms/Msm8998FamilyPkg/Include/Guid/Mi6BootRamdisk.h"
         ],
         "upgrade": {
-          "file": "tools/patches/edk2-sagit/0007-sagit-temporary-boot.patch",
+          "file": "patches/edk2/edk2-sagit/0007-sagit-temporary-boot.patch",
           "sha256": "245d94f48020a890b86bb8997ebd2771950a426b2cd44fc9437c99eb177cf223"
         }
       }
@@ -44,7 +44,7 @@
       "url": "https://github.com/tianocore/edk2.git",
       "commit": "e7aac7fc137e247edad22f7ee53b9a1fba227397",
       "patch": {
-        "file": "tools/patches/edk2-sagit/edk2-source-snapshot.patch",
+        "file": "patches/edk2/edk2-sagit/edk2-source-snapshot.patch",
         "sha256": "6f87cf251c7aa4924a228aa00587180e2a7ec2f036086f1f10f18cb4dfe59411",
         "source_files": [
           "EmbeddedPkg/Application/AndroidFastboot/AndroidFastbootApp.c",

@@ -57,7 +57,7 @@ build/output/kernelcache.wifi.verification.json
 
 `prepare-wifi` 从项目现有 iOS system cryptex 提取 DriverKit 24.6 cache 和参考库，
 校验固定哈希。需要时临时复制现有 APFS reader，应用
-`tools/patches/go-apfs-sealed-readonly.patch`，提取后自动删除临时源码和工具。
+`patches/go-apfs/go-apfs-sealed-readonly.patch`，提取后自动删除临时源码和工具。
 补丁仅用于读取 sealed catalog/extent，未修改通用 APFS 写入器，也未声称验证 APFS seal。
 公开 DriverKit 头位于 `tools/driverkit/include`，来源、不可变提交和哈希在其 `sources.json`。
 没有新增独立构建 Python/Shell 脚本。

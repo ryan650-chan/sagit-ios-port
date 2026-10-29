@@ -89,9 +89,9 @@ CRC32 用于检测传输和存储损坏，不提供来源认证。
 
 只接受唯一的非可移动 GPT `boot` 分区。分区协议由 EDK2 PartitionDxe 提供；
 重复匹配会拒绝启动，不猜测 LUN 或固定 LBA。加载器、默认启动和临时启动的增量补丁为
-`tools/patches/edk2-sagit/0005-sagit-boot-payload.patch` 和
-`tools/patches/edk2-sagit/0006-sagit-direct-boot.patch`、
-`tools/patches/edk2-sagit/0007-sagit-temporary-boot.patch`。
+`patches/edk2/edk2-sagit/0005-sagit-boot-payload.patch` 和
+`patches/edk2/edk2-sagit/0006-sagit-direct-boot.patch`、
+`patches/edk2/edk2-sagit/0007-sagit-temporary-boot.patch`。
 构建入口通过 `tools/edk2-sagit.json` 校验并应用包含这些修改的完整源码快照。
 现有源码与上一版快照完全一致时自动应用增量补丁；冲突时保留开发者修改和暂存区。
 

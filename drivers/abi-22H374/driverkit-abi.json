@@ -56,7 +56,7 @@
   },
   "scope": "public IOService lifecycle, opaque native WLAN registration and logical-link construction; IO80211 scan/join/key/control RPCs remain unported",
   "sealed_reader": {
-    "patch": "tools/patches/go-apfs-sealed-readonly.patch",
+    "patch": "patches/go-apfs/go-apfs-sealed-readonly.patch",
     "patch_sha256": "a324c8392b122811fb26df67a460dd98344880168ae60a4dd83bcb50a00cca2e",
     "source_files": {
       "pkg/apfs/volume_superblock.go": "0dd9e918f70d59d8b5f5c17c4b6d02d281d6024214ccc969d66bbe74779b717f",

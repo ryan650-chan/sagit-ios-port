@@ -1,0 +1,37 @@
+# XNU patch series for the sagit port.
+# Order = filename order, which is what scripts/kernel_patch_stack.py
+# replays; the z-prefixed entries must stay last. Blank lines and # are
+# ignored by the applier.
+
+vmapple-cpu-registers.patch
+vmapple-ios-sources.patch
+vmapple-no-amcc.patch
+vmapple-pmap.patch
+vmapple-runtime.patch
+xnu-iokit-development.patch
+xnu-mmap-development.patch
+xnu-perfcontrol-policy.patch
+xnu-process-exec-development.patch
+xnu-work-interval-ios18.patch
+zz-sdm835-platform.patch
+zzz-arm-interrupt-controller.patch
+zzzz-sdm835-bridge-debug.patch
+zzzzz-sdm835-native-panic.patch
+zzzzzz-sdm835-armv8-aot.patch
+zzzzzzz-sdm835-iokit-trace.patch
+zzzzzzzz-sdm835-development-root.patch
+zzzzzzzzzz-sdm835-storage-trace.patch
+zzzzzzzzzzz-development-sysctl-trace.patch
+zzzzzzzzzzzz-development-imageboot-mount.patch
+zzzzzzzzzzzzz-vm-page-size-bootarg.patch
+zzzzzzzzzzzzzz-development-boot-wait-trace.patch
+zzzzzzzzzzzzzz-development-driver-image.patch
+zzzzzzzzzzzzzzz-development-user-breakpoint-trace.patch
+zzzzzzzzzzzzzzzz-development-iokit-open-trace.patch
+zzzzzzzzzzzzzzzzz-generic-boot-memory.patch
+zzzzzzzzzzzzzzzzz-zz-imported-source-baseline.patch
+zzzzzzzzzzzzzzzzzz-sm8150-platform.patch
+zzzzzzzzzzzzzzzzzzz-usb-geni-console.patch
+zzzzzzzzzzzzzzzzzzzzzzzzz-sagit-mount-trace.patch
+zzzzzzzzzzzzzzzzzzzzzzzzzz-sagit-rosv-startup.patch
+zzzzzzzzzzzzzzzzzzzzzzzzzzz-sagit-data-mount-init.patch

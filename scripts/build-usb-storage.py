@@ -58,7 +58,8 @@ def bootstrap():
     if not (SOURCE/'.stamp-submodule').exists():
         (SOURCE/'.stamp-submodule').touch()
     for name in SPEC['patches']:
-        patch = ROOT/'tools/patches'/name
+        patch = next(iter(sorted((ROOT / 'patches').glob('*/' + name))),
+                         ROOT / 'patches' / 'linux' / name)
         applied = subprocess.run(['git', '-C', str(SOURCE), 'apply', '--reverse', '--check', str(patch)], capture_output=True)
         if applied.returncode:
             run('git', '-C', SOURCE, 'apply', '--check', patch)

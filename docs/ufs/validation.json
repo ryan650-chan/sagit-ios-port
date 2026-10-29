@@ -183,7 +183,7 @@
     "fs_alloc_count": 2469503,
     "native_count": 83396,
     "old_data_counter": 42778,
-    "tool_patch": "tools/patches/go-apfs-native-accounting.patch",
+    "tool_patch": "patches/go-apfs/go-apfs-native-accounting.patch",
     "fixture_and_cow_tests": "passed",
     "installed_on_device": false
   }

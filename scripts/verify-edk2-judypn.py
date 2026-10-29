@@ -39,7 +39,7 @@ def snapshot():
     extra = ['scripts/build-sagit.sh', 'scripts/edk2-host-gcc.sh', 'scripts/edk2-target-gcc.sh',
              'tools/device-profiles/sagit.json', 'build/edk2-sagit/boot-sagit.img',
              'build/edk2-sagit/uefi-sagit.fd']
-    extra += [str(p.relative_to(ROOT)) for p in (ROOT / 'tools/patches/edk2-sagit').glob('*.patch')]
+    extra += [str(p.relative_to(ROOT)) for p in (ROOT / 'patches/edk2/edk2-sagit').glob('*.patch')]
     for name in extra:
         p = ROOT / name
         if p.is_file():

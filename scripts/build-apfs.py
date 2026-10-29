@@ -20,6 +20,12 @@ GO=ROOT/'tools/prefix/libexec/go/bin/go'
 IPSW=ROOT/'tools/prefix/libexec/ipsw/ipsw'
 
 
+def patch_path(name):
+    """Patches moved to patches/<set>/; resolve by name so the set can change."""
+    for candidate in sorted((ROOT / "patches").glob("*/" + name)):
+        return candidate
+    return ROOT / "patches" / "go-apfs" / name
+
 def run(*args,**kwargs):
     subprocess.run([str(a) for a in args],check=True,**kwargs)
 
@@ -59,16 +65,16 @@ def bootstrap():
         env=dict(os.environ,GIT_INDEX_FILE=str(Path(temporary)/'index'))
         run('git','-C',source,'read-tree','HEAD',env=env)
         for name in SPEC['patches']:
-            run('git','-C',source,'apply','--cached',ROOT/'tools/patches'/name,env=env)
+            run('git','-C',source,'apply','--cached',patch_path(name),env=env)
         paths=subprocess.check_output(['git','-C',str(source),'diff','--cached','--name-only','HEAD'],env=env,text=True).splitlines()
         complete=subprocess.run(['git','-C',str(source),'diff','--quiet','--',*paths],env=env).returncode==0
     if not complete:
         for name in SPEC['patches']:
-            patch=ROOT/'tools/patches'/name
+            patch=patch_path(name)
             if subprocess.run(['git','-C',str(source),'apply','--reverse','--check',str(patch)],capture_output=True).returncode:
                 run('git','-C',source,'apply','--check',patch);run('git','-C',source,'apply',patch)
     checker_source=ROOT/'tools/src/apfsprogs'
-    checker_patch=ROOT/'tools/patches/apfsprogs-ios18-native-metadata.patch'
+    checker_patch=ROOT/'patches/apfsprogs/apfsprogs-ios18-native-metadata.patch'
     if subprocess.run(['git','-C',str(checker_source),'apply','--reverse','--check',str(checker_patch)],capture_output=True).returncode:
         run('git','-C',checker_source,'apply','--check',checker_patch)
         run('git','-C',checker_source,'apply',checker_patch)

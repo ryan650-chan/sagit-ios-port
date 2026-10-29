@@ -52,7 +52,7 @@ COREAUDIO、CA_CLIENT，否则返回 EINVAL。
 
 项目导入的公开 XNU 11417.140.69 源码无条件检查权限，与实际 iOS 18
 内核存在差异。修复在 `kernel/bsd/kern/sys_work_interval.c` 恢复上述
-原厂规则，持久补丁为 `tools/patches/xnu-work-interval-ios18.patch`。
+原厂规则，持久补丁为 `patches/xnu/xnu-work-interval-ios18.patch`。
 后端 `kern_work_interval_create` 未改变，继续检查 CA_CLIENT 应用类型、
 一个 task 只能创建一个 CA_CLIENT、禁止 CA_CLIENT GROUP 和线程已有区间。
 完整原厂 syscall 反汇编保存为 `work-interval-trace/native-work-interval-ctl.asm`。

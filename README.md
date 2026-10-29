@@ -53,20 +53,25 @@ fastboot boot  →  XnuBridge.efi (UEFI)  →  XNU  →  launchd  →  SpringBoa
 ## 目录结构
 
 ```
-drivers/         我们自己写的 kext（显示、输入、存储、总线、电源、安全……）
-boot/bridge/     XnuBridge.efi 的源码：UEFI 引导、设备树生成、cryptex 交接
-scripts/         构建与打包工具（APFS 镜像、kernelcache 打包、bridge、启动镜像）
-tools/patches/   打给 XNU 源码的补丁栈
-tools/*.json     显示 / 触摸 / 存储的交接配置
-device_trees/    设备树源文件
-docs/            每个子系统的调研与验证记录（触摸、显示、UFS、电源、GPU……）
+drivers/            我们自己写的 kext（显示、输入、存储、总线、电源、安全……）
+boot/bridge/        XnuBridge.efi 的源码：UEFI 引导、设备树生成、cryptex 交接
+patches/xnu/        打给 XNU 的补丁 + series（应用顺序）
+patches/<其它>/     按目标分组：llvm、go-apfs、edk2、linux、apfsprogs
+scripts/            构建与打包工具（APFS 镜像、kernelcache 打包、bridge、启动镜像）
+tools/              显示 / 触摸 / 存储的交接配置、日志抓取器
+device_trees/       设备树源文件
+docs/               每个子系统的调研与验证记录（触摸、显示、UFS、电源、GPU……）
+AGENTS.md           改动约定：红线、构建陷阱、改动落点、取证方式
 ```
+
+补丁顺序由 `patches/xnu/series` 逐行给出（文件名排序，`z` 开头的必须最后）。
+`patches/` 之外的目标在同一套规则下各自成组。
 
 ## 准备
 
 仓库**不含任何 Apple 二进制**。需要自备：
 
-- **XNU 源码树**：`tools/patches/` 里的补丁基于对应版本的 XNU，按文件名顺序应用。
+- **XNU 源码树**：`patches/xnu/series` 里的补丁按该顺序应用到对应版本的 XNU。
 - **iPadOS 18.7.10（22H374，iPad7,11 / iPad7,12）固件**：从 Apple CDN 下载 IPSW，
   取出 `kernelcache.release.ipad7c`、`SystemOS.dmg`、`Cryptex1,AppOS`、根文件系统等，
   放到 `build/apfs/` 下（路径见 `scripts/build-port.sh`）。
@@ -128,3 +133,9 @@ python3 tools/sagit-log-pull.py --adb adb --tail 3
 - 各源文件顶部保留原始许可头（GPL-2.0 / BSD-2-Clause / APSL）。
 - 与 Apple 无任何关联，未获其授权。仅供内核与驱动移植研究，请勿用于任何依赖
   安全性的场景。
+
+## 关于仓库布局
+
+这是一个独立的研究仓库，**没有**采用 UniXNU 的设备仓库布局（不带 `board.toml` /
+`porting.toml` / `feeds.toml`，驱动也没有拆成独立组件仓库）。补丁目录和
+`AGENTS.md` 的约定沿用了他们的习惯，方便将来迁移；现阶段先把东西跑通比先对齐目录更有意义。

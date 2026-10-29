@@ -373,7 +373,7 @@
     "tools/kernelcache_patcher/Patcher.cpp": "30cfbf9de129ac2af4ef5d33bac0f6e2a1663c5d4c234a40623465d0460b0659",
     "tools/kernelcache_patcher/include/Patcher.h": "5ac1d0ef1e174521a7f2df6711433b3ba1d9c31854a3dd821d64e661982b2c3e",
     "tools/kernelcache_patcher/tests/PatcherControlFlowTests.cpp": "fce6d86a55d2fa87887dc9a3a9b6d4b54e37acaf597d5a6ae3741c855b8d6195",
-    "tools/patches/xnu-perfcontrol-policy.patch": "1e29d4532c7654d1b2eb8dbb0021d70a49b589a239f461b8ad6479bd3fb2bb25",
+    "patches/xnu/xnu-perfcontrol-policy.patch": "1e29d4532c7654d1b2eb8dbb0021d70a49b589a239f461b8ad6479bd3fb2bb25",
     "tools/powerctl/powerctl.cpp": "3639f2b431944e016e111df168643ad8606a7bdc2ba0a1caf98f5dabf8ce54a6"
   },
   "native_dependency_audit": "docs/power/ios18/dependency-audit.json",
