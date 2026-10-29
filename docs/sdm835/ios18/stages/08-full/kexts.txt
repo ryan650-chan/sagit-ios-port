@@ -1,0 +1,45 @@
+# Union of 04-apfs-security (storage + security closure) and
+# 07-graphics (IOMobileGraphicsFamily / IOSurface / IOHIDFamily),
+# so one kernel carries both the filesystem and the UI stack.
+com.apple.driver.AppleARMPlatform
+com.apple.driver.AppleARMWatchdogTimer
+com.apple.driver.AppleAudioClockLibs
+com.apple.driver.AppleEffaceableStorage
+com.apple.driver.AppleIISController
+com.apple.driver.AppleM2ScalerCSCDriver
+com.apple.driver.AppleMobileFileIntegrity
+com.apple.driver.ApplePMGR
+com.apple.driver.IODARTFamily
+com.apple.filesystems.apfs
+com.apple.iokit.CoreAnalyticsFamily
+com.apple.iokit.IOAVFamily
+com.apple.iokit.IOAudio2Family
+com.apple.iokit.IOCECFamily
+com.apple.iokit.IOCryptoAcceleratorFamily
+com.apple.iokit.IOHDCPFamily
+com.apple.iokit.IOHIDFamily
+com.apple.iokit.IOMobileGraphicsFamily
+com.apple.iokit.IOReportFamily
+com.apple.iokit.IOSlowAdaptiveClockingFamily
+com.apple.iokit.IOStorageFamily
+com.apple.iokit.IOSurface
+com.apple.kec.Libm
+com.apple.kec.corecrypto
+com.apple.kext.AppleMatch
+com.apple.kext.CoreTrust
+com.apple.kpi.bsd
+com.apple.kpi.dsep
+com.apple.kpi.iokit
+com.apple.kpi.libkern
+com.apple.kpi.mach
+com.apple.kpi.private
+com.apple.kpi.unsupported
+com.apple.security.AppleImage4
+com.apple.security.sandbox
+org.darwin.driver.NativeRamBlock
+org.darwin.driver.QcomDisplay
+org.darwin.driver.QcomMIPIDSI
+org.darwin.driver.PMI8998WLED
+org.darwin.driver.SynapticsTouch
+org.darwin.driver.QcomButtons
+org.darwin.driver.PMI8998Haptics

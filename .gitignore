@@ -1,0 +1,22 @@
+# build output and intermediates
+build/
+*.img
+*.img.json
+*.o
+*.dSYM/
+
+# no Apple binaries, ever
+*.macho
+*.dmg
+*.aea
+*.ipsw
+*.kext/
+**.bin
+
+# python
+__pycache__/
+*.pyc
+
+# editor / OS
+.DS_Store
+.vscode/

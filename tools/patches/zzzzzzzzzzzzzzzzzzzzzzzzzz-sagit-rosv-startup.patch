@@ -1,0 +1,8 @@
+--- a/config/MASTER.arm64.iPhoneOS
++++ b/config/MASTER.arm64.iPhoneOS
+@@ -37,4 +37,4 @@
+-#  FILESYS_BASE =   [ devfs fifo fs_compression config_protect config_mnt_rootsnap config_triggers config_fse routefs namedstreams config_dataless_files bindfs]
++#  FILESYS_BASE =   [ devfs fifo fs_compression config_protect config_mnt_rootsnap config_rosv_startup config_triggers config_fse routefs namedstreams config_dataless_files bindfs]
+ #  FILESYS_RELEASE= [ FILESYS_BASE ]
+ #  FILESYS_DEV =    [ FILESYS_BASE fdesc config_union_mounts ]
+ #  FILESYS_DEBUG =  [ FILESYS_BASE fdesc config_union_mounts ]

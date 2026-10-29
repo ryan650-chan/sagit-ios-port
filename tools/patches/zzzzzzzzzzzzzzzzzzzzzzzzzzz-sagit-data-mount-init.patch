@@ -1,0 +1,19 @@
+--- a/bsd/kern/kern_exec.c
++++ b/bsd/kern/kern_exec.c
+@@ -7332,6 +7332,16 @@
+ 	(void) memorystatus_init_at_boot_snapshot();
+ #endif /* CONFIG_MEMORYSTATUS */
+ 
++#if DEVELOPMENT || DEBUG
++	{
++		/* sagit-port: mount the RAM-backed /private/var from the init
++		 * task's address space so the real APFS mount arguments can be
++		 * passed to mount(2). */
++		extern int sagit_data_mount_at_init(struct proc *, user_addr_t);
++		(void)sagit_data_mount_at_init(p, (user_addr_t)scratch_addr);
++	}
++#endif /* DEVELOPMENT || DEBUG */
++
+ #if DEBUG || DEVELOPMENT
+ 	/* Check for boot-arg suffix first */
+ 	char launchd_suffix[64];

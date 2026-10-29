@@ -1,0 +1,82 @@
+--- a/bsd/vfs/vfs_syscalls.c
++++ b/bsd/vfs/vfs_syscalls.c
+@@ -860,6 +860,42 @@
+ 
+ #define MAX_NESTED_UNION_MOUNTS  10
+ 
++#if DEVELOPMENT || DEBUG
++/*
++ * sagit-port: early-boot mount results are printed while the mirror console is
++ * flooded by storage and launchd chatter, so nothing survives long enough to
++ * photograph. Record each userspace mount and dump the table at a fixed point
++ * (the suppressed userspace panic) instead.
++ */
++struct sagit_mount_record {
++	char path[48];
++	char spec[48];
++	char type[12];
++	int err;
++	int ro;
++};
++#define SAGIT_MOUNT_RECORDS 8
++struct sagit_mount_record sagit_mount_records[SAGIT_MOUNT_RECORDS];
++int sagit_mount_record_count;
++
++void
++sagit_mount_dump(void)
++{
++	int n = sagit_mount_record_count;
++	if (n > SAGIT_MOUNT_RECORDS) {
++		n = SAGIT_MOUNT_RECORDS;
++	}
++	printf("sagit-port MOUNTS: %d recorded\n", n);
++	for (int pass = 0; pass < 2; pass++) {
++		for (int i = 0; i < n; i++) {
++			struct sagit_mount_record *r = &sagit_mount_records[i];
++			printf("sagit-port  [%d] '%s' type='%s' spec='%s' err=%d ro=%d\n",
++			    i, r->path, r->type, r->spec, r->err, r->ro);
++		}
++	}
++}
++#endif /* DEVELOPMENT || DEBUG */
++
+ int
+ __mac_mount(struct proc *p, register struct __mac_mount_args *uap, __unused int32_t *retval)
+ {
+@@ -1033,6 +1069,36 @@
+ 	    labelstr, ctx);
+ 
+ out:
++
++#if DEVELOPMENT || DEBUG
++	{
++		char sagit_mntpath[48];
++		char sagit_spec[48];
++		size_t sagit_len = 0;
++		int ro = -1;
++		int slot = sagit_mount_record_count;
++		if (copyinstr(uap->path, sagit_mntpath, sizeof(sagit_mntpath),
++		    &sagit_len) != 0) {
++			strlcpy(sagit_mntpath, "<unreadable>", sizeof(sagit_mntpath));
++		}
++		if (uap->data == USER_ADDR_NULL ||
++		    copyinstr(uap->data, sagit_spec, sizeof(sagit_spec), &sagit_len) != 0) {
++			strlcpy(sagit_spec, "<none>", sizeof(sagit_spec));
++		}
++		if (error == 0 && vp != NULLVP && vp->v_mount != NULL) {
++			ro = (vp->v_mount->mnt_flag & MNT_RDONLY) ? 1 : 0;
++		}
++		if (slot < SAGIT_MOUNT_RECORDS) {
++			struct sagit_mount_record *r = &sagit_mount_records[slot];
++			strlcpy(r->path, sagit_mntpath, sizeof(r->path));
++			strlcpy(r->spec, sagit_spec, sizeof(r->spec));
++			strlcpy(r->type, fstypename, sizeof(r->type));
++			r->err = error;
++			r->ro = ro;
++			sagit_mount_record_count = slot + 1;
++		}
++	}
++#endif
+ 
+ #if CONFIG_MACF
+ 	kfree_data(labelstr, labelsz);

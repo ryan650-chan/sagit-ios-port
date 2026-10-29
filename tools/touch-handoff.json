@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "board": "xiaomi,sagit",
+  "core_clock_hz": 19200000,
+  "bus_clock_hz": 400000,
+  "firmware_quiesced": true,
+  "clocks_retained": true,
+  "pins_retained": true,
+  "supplies_retained": true,
+  "reset_deasserted": true,
+  "swap_axes": false,
+  "invert_x": false,
+  "invert_y": false,
+  "rotation": 0
+}
