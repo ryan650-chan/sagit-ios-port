@@ -20,11 +20,11 @@
 | 用户态启动 | ✅ launchd → 各守护进程 |
 | 显示 | ✅ 1080×1920 DSI 面板，软件 CoreAnimation，**已确认有帧提交** |
 | SpringBoard | ✅ 运行并绘制锁屏 |
-| 解锁 | ❌ 停在 “Press Home to open”，缺 Home 键输入 |
-| 触摸 | ❌ 未启用（I²C 总线栈未编入，见「已知问题」） |
+| 触摸 | ✅ Synaptics S3330 / RMI4 F12，10 点触控，物理点击与滑动可用 |
+| 解锁 | ❌ 停在 “Press Home to open”；机身无 Home 键，正在想办法代偿 |
 | Wi-Fi / 蓝牙 / 蜂窝 / 音频 / 摄像头 / GPU | ❌ 未实现 |
 
-启动后会停在锁屏界面。屏幕能显示、能出帧，但进不了桌面。
+启动后会停在锁屏界面。屏幕能显示、能出帧、能响应触摸，但进不了桌面。
 
 ---
 
@@ -117,12 +117,17 @@ python3 tools/sagit-log-pull.py --adb adb --tail 3
 
 ## 已知问题 / 下一步
 
-- **触摸**：`QcomI2C` + `GenericI2C` 未编入内核清单，`SynapticsTouch` 没有 provider，
-  从来没有启动过。加回去需要先解决 QUP5 的时钟交接：不加 `--touch-prepare` 会挂死，
-  加了 `--touch-prepare` 会卡在 EFI 阶段。下一步是给那条路径加打印定位。
-- **解锁**：iPhone/iPad 的锁屏要 Home 键。试过往 `QcomButtons` 的 HID 描述符里注入
-  `AC Home (0x223)` 并在启动后定时脉冲，SpringBoard 没有响应。代码树里还有
-  `FingerprintHID`（把前置指纹当 Home 键）但未编入，是更正确的方向。
+- **触摸（已修复，保留记录）**：`SynapticsTouch` 曾经从头到尾没有启动过——kext 清单里
+  只有它自己，缺 `GenericI2C`（它的 provider）、`QcomI2C`（QUP5 控制器）、
+  `QcomGCC` + `GenericClockController`（BLSP1 总线时钟）和 `QcomGPIO`（GPIO125 中断）。
+  补齐后还有两道关：驱动比 I2C 控制器先匹配，首查必然失败（改为先启动、每秒重试）；
+  以及默认交接模式假设固件已释放触控复位、保留供电，而 EDK2 从不碰 GPIO89 / GPIO50
+  （改为在 EFI 的 preflight 里 settle 引脚、供电与复位，GCC 时钟仍交给内核）。
+  现在物理点击与滑动可用。
+- **解锁**：机身没有 Home 键，锁屏停在 “Press Home to open”。`SBDontLockEver` 只管
+  阻止后续锁定，管不了开机首次解锁。目前把两个音量键同时按映射为 AC Home，
+  正在验证 SpringBoard 是否接受；若不行，备选是 `FingerprintHID`（把前置指纹当
+  Home 键）或直接干预 SpringBoard 的解锁状态。
 - **watchdogd** 仍在崩溃循环（SIGTRAP），未影响出帧。
 - 分辨率相关的取舍：我们是 16:9（1080×1920），如果改成 iPhone X 那种全面屏机型，
   iOS 会按 1125×2436 排版，底部 516 像素（含 Home 指示条）会被切掉，

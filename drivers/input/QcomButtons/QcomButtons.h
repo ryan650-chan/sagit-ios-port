@@ -15,10 +15,6 @@ class QcomButtons : public IOHIDDevice {
     IOCommandGate *fGate = nullptr;
     IOTimerEventSource *fTimer = nullptr;
     IOTimerEventSource *fDiagnosticTimer = nullptr;
-    IOTimerEventSource *fHomeTimer = nullptr;
-    bool fHomeDown = false;
-    unsigned fHomePulses = 0;
-    static void homeAction(OSObject *, IOTimerEventSource *);
     IOInterruptEventSource *fInterrupts[3] = {};
     bool fAdded[3] = {}, fGateAdded=false, fTimerAdded=false, fOnline=false, fPM=false, fNeutralPending=false;
     IOBufferMemoryDescriptor *fReportBuffer = nullptr;

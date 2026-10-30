@@ -31,6 +31,8 @@ class SynapticsTouch : public IOHIDDevice {
     IOBufferMemoryDescriptor *fBuffer=nullptr;
     bool fOpen=false,fGateAdded=false,fIRQAdded=false,fTimerAdded=false,fPM=false;
     bool fRunning=false,fConfigured=false,fStopping=false,fHIDReady=false,fTrace=false;
+    bool fPolling=false;
+    uint64_t fSamples=0,fEmitFailures=0;
     bool fDiagnosticEnabled=false,fDiagnosticActive=false,fDiagnosticTimerAdded=false;
     uint64_t fDiagnosticPulses=0,fDiagnosticReports=0;
     unsigned fErrors=0,fRecoveries=0,fLastContacts=0;
@@ -45,6 +47,7 @@ class SynapticsTouch : public IOHIDDevice {
     static IOReturn diagnosticTap(OSObject *,void *,void *,void *,void *);
     static void diagnosticRelease(OSObject *,IOTimerEventSource *);
     bool emit(const RMI4::Frame &);
+    void publishSensorProperties();
     void sample();
     void cleanup();
 public:

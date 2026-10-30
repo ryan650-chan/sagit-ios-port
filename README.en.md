@@ -11,7 +11,7 @@ A research port that runs the iPadOS 18.7.10 userland on a Xiaomi Mi 6 (sagit / 
 
 ---
 
-## Status (2026-10-29)
+## Status (2026-10-30)
 
 | Stage | State |
 |---|---|
@@ -20,11 +20,11 @@ A research port that runs the iPadOS 18.7.10 userland on a Xiaomi Mi 6 (sagit / 
 | Userland bring-up | ✅ launchd → daemons |
 | Display | ✅ 1080×1920 DSI panel, software CoreAnimation, **frame submission confirmed** |
 | SpringBoard | ✅ runs and draws the lock screen |
-| Unlock | ❌ stuck at "Press Home to open"; no Home button input |
-| Touch | ❌ not enabled (I²C bus stack not built in, see Known issues) |
+| Touch | ✅ Synaptics S3330 / RMI4 F12, ten contacts, physical taps and swipes work |
+| Unlock | ❌ stuck at "Press Home to open"; the body has no Home key, workaround in progress |
 | Wi-Fi / Bluetooth / cellular / audio / camera / GPU | ❌ not implemented |
 
-It stops at the lock screen. The screen lights up and frames are submitted, but it never reaches the home screen.
+It stops at the lock screen. The screen lights up, submits frames and responds to touch, but it never reaches the home screen.
 
 ---
 
@@ -103,8 +103,8 @@ The window can carry more than logs: `sagit_dump_file()` copies an arbitrary fil
 
 ## Known issues / next steps
 
-- **Touch.** `QcomI2C` and `GenericI2C` are not in the kernel's kext list, so `SynapticsTouch` has no provider and has never started. Adding them back requires solving the QUP5 clock handoff first: without `--touch-prepare` the kernel hangs, and with `--touch-prepare` it stalls during the EFI stage. The next step is to add tracing to that path to find where it stalls.
-- **Unlock.** The iPhone/iPad lock screen wants a Home button. Injecting `AC Home (0x223)` into the `QcomButtons` HID descriptor and pulsing it after boot produced no response from SpringBoard. The tree also contains `FingerprintHID` (front fingerprint sensor as Home button), which is not built in — that is the more correct direction.
+- **Touch (fixed, kept for the record).** `SynapticsTouch` had never started: the manifest carried the sensor but not `GenericI2C` (its provider), `QcomI2C` (the QUP5 controller), `QcomGCC` + `GenericClockController` (BLSP1 bus clocks) or `QcomGPIO` (the GPIO125 interrupt). Two more gates followed: the driver matched before the I2C controller probed, so the first query always failed (it now starts anyway and retries once a second), and the default handoff mode assumes firmware released the touch reset and kept its rail powered, while EDK2 touches neither GPIO89 nor GPIO50 (the EFI preflight now settles pins, rail and reset; the GCC clocks stay with the kernel). Physical taps and swipes work.
+- **Unlock.** The body has no Home key, so the lock screen waits on "Press Home to open". `SBDontLockEver` only prevents later locking, not the first unlock after boot. Volume up plus volume down is currently mapped to AC Home and is being verified against SpringBoard; if it is ignored, the alternatives are `FingerprintHID` (front fingerprint sensor as a Home button) or intervening in SpringBoard's lock state directly.
 - **`watchdogd`** is still crash-looping (SIGTRAP); it does not affect frame submission.
 - **Resolution trade-off.** We are 16:9 (1080×1920). Switching to an iPhone X-class, all-screen device identity would make iOS lay out for 1125×2436, cutting off the bottom 516 pixels (including the home indicator), so the current build keeps a Home-button device identity.
 

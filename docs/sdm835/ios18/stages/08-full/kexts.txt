@@ -18,6 +18,7 @@ com.apple.iokit.IOCECFamily
 com.apple.iokit.IOCryptoAcceleratorFamily
 com.apple.iokit.IOHDCPFamily
 com.apple.iokit.IOHIDFamily
+com.apple.iokit.IOHIDEventDriver
 com.apple.iokit.IOMobileGraphicsFamily
 com.apple.iokit.IOReportFamily
 com.apple.iokit.IOSlowAdaptiveClockingFamily
@@ -43,3 +44,12 @@ org.darwin.driver.PMI8998WLED
 org.darwin.driver.SynapticsTouch
 org.darwin.driver.QcomButtons
 org.darwin.driver.PMI8998Haptics
+
+# touch: QUP5 bus and RMI4 sensor. Without GenericI2C the sensor has no
+# provider, and without QcomGCC the controller cannot raise BLSP1 AHB /
+# QUP5, so the first register access stalls the interconnect.
+org.darwin.driver.GenericClockController
+org.darwin.driver.GenericI2C
+org.darwin.driver.QcomGCC
+org.darwin.driver.QcomGPIO
+org.darwin.driver.QcomI2C

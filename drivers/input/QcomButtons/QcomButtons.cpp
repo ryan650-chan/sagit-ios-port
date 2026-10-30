@@ -62,11 +62,6 @@ bool QcomButtons::start(IOService *provider) {
     PMinit(); fPM=true; provider->joinPMtree(this);
     if (registerPowerDriver(this,states,2)!=kIOReturnSuccess) { super::stop(provider); return false; }
     changePowerStateTo(1);
-    fHomeTimer=IOTimerEventSource::timerEventSource(this,homeAction);
-    if (fHomeTimer && fLoop->addEventSource(fHomeTimer)==kIOReturnSuccess) {
-        fHomeTimer->setTimeoutMS(75000);   // SpringBoard draws its first frame ~124s
-        kprintf("QcomButtons: home pulse armed\n");
-    }
     IOLog("QcomButtons: native HID ready (power, volume up, volume down)\n");
     registerService(); return true;
 }
@@ -75,24 +70,11 @@ void QcomButtons::timerAction(OSObject *owner,IOTimerEventSource *) { static_cas
 bool QcomButtons::send(UInt8 value) {
     if (fReportBuffer->writeBytes(0,&value,1)!=1 || handleReport(fReportBuffer,kIOHIDReportTypeInput,0)!=kIOReturnSuccess) return false;
     if (fTrace && value!=fReport) kprintf("QcomButtons: HID input 0x%x -> 0x%x\n",fReport,value);
+    if ((value^fReport)&QcomButton::HomeBit)
+        kprintf("QcomButtons: volume chord -> Home %s\n",(value&QcomButton::HomeBit)?"press":"release");
     fReport=value;setProperty("ButtonInputReports",++fInputReports,64);
     if (fDiagnosticEnabled && !fDiagnosticActive && !(value&1)) setProperty("HIDDiagnosticLastReleased",true);
     return true;
-}
-void QcomButtons::homeAction(OSObject *owner,IOTimerEventSource *timer) {
-    auto *self=static_cast<QcomButtons *>(owner);
-    if (!self->fHomeDown) {
-        self->fHomeDown=true; self->send(uint8_t(self->fReport|QcomButton::HomeBit));
-        timer->setTimeoutMS(180);
-        return;
-    }
-    self->fHomeDown=false; self->send(uint8_t(self->fReport&~QcomButton::HomeBit));
-    if (++self->fHomePulses<6) {
-        timer->setTimeoutMS(30000);
-        kprintf("QcomButtons: home pulse %u\n",self->fHomePulses);
-    } else {
-        kprintf("QcomButtons: home pulses done\n");
-    }
 }
 void QcomButtons::sample() {
     if (!fOnline) {

@@ -29,25 +29,32 @@ bool SynapticsTouch::Transport::write(uint16_t address,const uint8_t *bytes,size
 }
 void SynapticsTouch::Transport::delayMS(unsigned ms) { IOSleep(ms); }
 bool SynapticsTouch::handleStart(IOService *provider) {
-    if (!super::handleStart(provider)) return false;
+    kprintf("SynapticsTouch: handleStart entered\n");
+    if (!super::handleStart(provider)) { kprintf("SynapticsTouch: IOHIDDevice::handleStart failed\n"); return false; }
     fDevice=OSDynamicCast(GenericI2CDevice,provider);
     auto *handoff=OSDynamicCast(OSData,provider->getProperty("synaptics,touch-handoff"));
     uint32_t h[3];
-    if (!fDevice || fDevice->address()!=0x20 || !handoff || handoff->getLength()!=sizeof(h)) return false;
+    if (!fDevice) { kprintf("SynapticsTouch: provider is not a GenericI2CDevice\n"); return false; }
+    if (fDevice->address()!=0x20) { kprintf("SynapticsTouch: address 0x%x, expected 0x20\n", unsigned(fDevice->address())); return false; }
+    if (!handoff) { kprintf("SynapticsTouch: no synaptics,touch-handoff property\n"); return false; }
+    if (handoff->getLength()!=sizeof(h)) { kprintf("SynapticsTouch: handoff is %u bytes, expected %u\n", unsigned(handoff->getLength()), unsigned(sizeof(h))); return false; }
     memcpy(h,handoff->getBytesNoCopy(),sizeof(h));
-    if (h[0]!=1 || h[1]!=7 || h[2]>7) return false;
+    if (h[0]!=1 || h[1]!=7 || h[2]>7) { kprintf("SynapticsTouch: handoff version=%u revision=%u transform=0x%x\n", h[0],h[1],h[2]); return false; }
     fTransform.swap=h[2]&1;fTransform.invertX=h[2]&2;fTransform.invertY=h[2]&4;
     auto *rotation=OSDynamicCast(OSData,provider->getProperty("touchscreen-rotation"));
     if (rotation) {
         if (rotation->getLength()!=4) return false;
         memcpy(&fTransform.rotation,rotation->getBytesNoCopy(),4);
     } else if (provider->getProperty("touchscreen-rotation")) return false;
-    if (!fTransform.valid() || !fDevice->open(this)) return false;
+    if (!fTransform.valid()) { kprintf("SynapticsTouch: rotation %u is not a right angle\n", fTransform.rotation); return false; }
+    if (!fDevice->open(this)) { kprintf("SynapticsTouch: bus device is already open\n"); return false; }
     fOpen=true;fTransport.device=fDevice;fTransport.owner=this;
     fGate=IOCommandGate::commandGate(this);
     fTimer=IOTimerEventSource::timerEventSource(this,timer);
     fBuffer=IOBufferMemoryDescriptor::withCapacity(TouchHID::ReportBytes,kIODirectionOutIn);
-    if (!fLoop || !fGate || !fTimer || !fBuffer || fLoop->addEventSource(fGate)!=kIOReturnSuccess) goto fail;
+    if (!fLoop || !fGate || !fTimer || !fBuffer || fLoop->addEventSource(fGate)!=kIOReturnSuccess) {
+        kprintf("SynapticsTouch: workloop setup loop=%d gate=%d timer=%d buffer=%d\n", fLoop!=nullptr, fGate!=nullptr, fTimer!=nullptr, fBuffer!=nullptr); goto fail;
+    }
     fGateAdded=true;
     if (fLoop->addEventSource(fTimer)!=kIOReturnSuccess) goto fail;
     fTimerAdded=true;
@@ -59,17 +66,24 @@ bool SynapticsTouch::handleStart(IOService *provider) {
     }
     fIRQ=IOInterruptEventSource::interruptEventSource(this,interrupt,provider,0);
     if (fIRQ) fIRQ->disable();
-    if (!fIRQ || fLoop->addEventSource(fIRQ)!=kIOReturnSuccess) goto fail;
-    fIRQAdded=true;fIRQ->disable();
+    if (!fIRQ || fLoop->addEventSource(fIRQ)!=kIOReturnSuccess) {
+        // This port gives the I2C client no interrupt, so the event source
+        // comes back null. Fall back to continuous polling rather than
+        // refusing to start.
+        kprintf("SynapticsTouch: no interrupt source, polling instead\n");
+        if (fIRQ) { fIRQ->release(); fIRQ=nullptr; }
+        fPolling=true;
+    } else {
+        fIRQAdded=true;fIRQ->disable();
+        kprintf("SynapticsTouch: interrupt source ready\n");
+    }
     {
         const auto result=fSensor.initialize();
-        if (fTrace) kprintf("SynapticsTouch: RMI startup result=%u product=%s\n",unsigned(result),fSensor.product);
-        if (result!=RMI4::Result::Success) goto fail;
-    }
-    fConfigured=true;fMaxX=fSensor.maxX;fMaxY=fSensor.maxY;
-    {
-        RMI4::Frame neutral;
-        TouchHID::report(neutral,fMaxX,fMaxY,fTransform,0,fLast);
+        if (fTrace || result!=RMI4::Result::Success)
+            kprintf("SynapticsTouch: RMI startup result=%u product=%s\n",unsigned(result),fSensor.product);
+        // The bus controller can still be probing when this kext matches, so the
+        // first query may fail with Result::IO. Start anyway: sample() retries.
+        if (result==RMI4::Result::Success) { fConfigured=true;fMaxX=fSensor.maxX;fMaxY=fSensor.maxY; }
     }
     setProperty("Built-In",true);
     // Native AppleMultitouchHIDService publishes both the generic Built-In
@@ -80,11 +94,7 @@ bool SynapticsTouch::handleStart(IOService *provider) {
     setProperty("DisplayIntegrated",true);
     setProperty("DigitizerCollectionDispatch",true);
     setProperty("HIDInputReportBytes",TouchHID::ReportBytes,32);
-    setProperty("RMIProductID",fSensor.product);
-    setProperty("RMIFunction",fSensor.function(),32);
-    setProperty("RMIMaxContacts",fSensor.contactCount(),32);
-    setProperty("RMIMaxX",fMaxX,32);setProperty("RMIMaxY",fMaxY,32);
-    setProperty("RMIDataAddress",fSensor.reportDataAddress(),32);
+    publishSensorProperties();
     return true;
 fail:
     cleanup();return false;
@@ -113,12 +123,28 @@ bool SynapticsTouch::start(IOService *provider) {
     IOLog("SynapticsTouch: %s F%02x, %u contacts, native HID ready\n",fSensor.product,fSensor.function(),fSensor.contactCount());
     return true;
 }
+void SynapticsTouch::publishSensorProperties() {
+    if (!fConfigured || !fMaxX || !fMaxY) return;
+    RMI4::Frame neutral;
+    TouchHID::report(neutral,fMaxX,fMaxY,fTransform,0,fLast);
+    setProperty("RMIProductID",fSensor.product);
+    setProperty("RMIFunction",fSensor.function(),32);
+    setProperty("RMIMaxContacts",fSensor.contactCount(),32);
+    setProperty("RMIMaxX",fMaxX,32);setProperty("RMIMaxY",fMaxY,32);
+    setProperty("RMIDataAddress",fSensor.reportDataAddress(),32);
+}
 bool SynapticsTouch::emit(const RMI4::Frame &frame) {
     uint64_t ticks,ns;clock_get_uptime(&ticks);absolutetime_to_nanoseconds(ticks,&ns);
     uint8_t bytes[TouchHID::ReportBytes];
-    if (!TouchHID::report(frame,fMaxX,fMaxY,fTransform,ns,bytes) ||
-        fBuffer->writeBytes(0,bytes,sizeof(bytes))!=sizeof(bytes) ||
-        handleReport(fBuffer,kIOHIDReportTypeInput,0)!=kIOReturnSuccess) return false;
+    const bool encoded=TouchHID::report(frame,fMaxX,fMaxY,fTransform,ns,bytes);
+    const bool staged=encoded && fBuffer->writeBytes(0,bytes,sizeof(bytes))==sizeof(bytes);
+    const IOReturn posted=staged ? handleReport(fBuffer,kIOHIDReportTypeInput,0) : kIOReturnNotReady;
+    if (!encoded || !staged || posted!=kIOReturnSuccess) {
+        if (++fEmitFailures<=4)
+            kprintf("SynapticsTouch: emit failed encoded=%d staged=%d posted=0x%x max=%ux%u\n",
+                    encoded,staged,unsigned(posted),fMaxX,fMaxY);
+        return false;
+    }
     setProperty("TouchInputReports",++fInputReports,64);
     unsigned contacts=0;for(const auto &contact:frame.contacts)contacts+=contact.active;
     if(fDiagnosticActive) setProperty("TouchDiagnosticReports",++fDiagnosticReports,64);
@@ -132,13 +158,19 @@ bool SynapticsTouch::emit(const RMI4::Frame &frame) {
     if(!fDiagnosticActive && contacts && !fLastContacts)setProperty("TouchDownTransitions",++fDownTransitions,64);
     if(!fDiagnosticActive && !contacts && fLastContacts)setProperty("TouchUpTransitions",++fUpTransitions,64);
     if (fTrace && contacts!=fLastContacts) kprintf("SynapticsTouch: HID contacts=%u reports=%llu\n",contacts,fInputReports);
+    // One line every 400 reports (~10 s at the polling rate) shows the pipeline
+    // is alive without drowning the log in per-frame noise.
+    if (fInputReports % 400 == 0) kprintf("SynapticsTouch: heartbeat reports=%llu contacts=%u\n",fInputReports,contacts);
     fLastContacts=contacts;
     setProperty("TouchContacts",contacts,32);
     memcpy(fLast,bytes,sizeof(bytes));return true;
 }
 void SynapticsTouch::sample() {
     if (fStopping || !fHIDReady || fDiagnosticActive) return;
-    fIRQ->disable();
+    if (++fSamples<=3 || fSamples%60==0)
+        kprintf("SynapticsTouch: sampling samples=%llu input=%llu errors=%u\n",
+                fSamples,fInputReports,fErrors);
+    if (fIRQ) fIRQ->disable();
     RMI4::Frame frame;
     if (fDelivery.releasing()) {
         if (!fDelivery.send(frame,[this](const RMI4::Frame &value){return emit(value);})) {
@@ -148,10 +180,19 @@ void SynapticsTouch::sample() {
     }
     if (!fRunning) return;
     if (!fConfigured) {
-        if (++fRecoveries>10) { fRunning=false;setProperty("HIDInputOffline",true);return; }
+        if (++fRecoveries>60) {
+            kprintf("SynapticsTouch: sensor never answered, input offline\n");
+            fRunning=false;setProperty("HIDInputOffline",true);return;
+        }
         setProperty("RMIRecoveryAttempts",fRecoveries,32);
-        if (fSensor.initialize()!=RMI4::Result::Success) { fTimer->setTimeoutMS(1000);return; }
+        const auto recovery=fSensor.initialize();
+        if (fRecoveries<=6 || fRecoveries%10==0)
+            kprintf("SynapticsTouch: retry %u result=%u\n",fRecoveries,unsigned(recovery));
+        if (recovery!=RMI4::Result::Success) { fTimer->setTimeoutMS(1000);return; }
         fConfigured=true;fMaxX=fSensor.maxX;fMaxY=fSensor.maxY;
+        publishSensorProperties();
+        kprintf("SynapticsTouch: sensor answered on retry %u, F%02x max=%ux%u\n",
+                fRecoveries,fSensor.function(),fMaxX,fMaxY);
     }
     const auto result=fSensor.sample(frame);
     if(fTrace){
@@ -178,7 +219,9 @@ void SynapticsTouch::sample() {
         fTimer->setTimeoutMS(20);return;
     }
     // Level-low IRQ plus a watchdog: recover lost releases and device resets.
-    fIRQ->enable();fTimer->setTimeoutMS(fDelivery.held() ? 20 : 1000);
+    if (fIRQ) fIRQ->enable();
+    fTimer->setTimeoutMS(fPolling ? (fDelivery.held() ? 8 : 25)
+                                  : (fDelivery.held() ? 20 : 1000));
 }
 void SynapticsTouch::interrupt(OSObject *owner,IOInterruptEventSource *,int) { static_cast<SynapticsTouch *>(owner)->sample(); }
 void SynapticsTouch::timer(OSObject *owner,IOTimerEventSource *) { static_cast<SynapticsTouch *>(owner)->sample(); }
@@ -202,7 +245,7 @@ IOReturn SynapticsTouch::diagnosticTap(OSObject *owner,void *request,void *,void
     RMI4::Frame frame;auto &c=frame.contacts[0];c.active=true;
     c.x=uint32_t(RMI4::le16(p))*s->fMaxX/32767;c.y=uint32_t(RMI4::le16(p+2))*s->fMaxY/32767;
     c.pressure=p[4];c.width=p[5];c.height=p[6];
-    s->fDiagnosticActive=true;s->fIRQ->disable();s->fTimer->cancelTimeout();
+    s->fDiagnosticActive=true;if (s->fIRQ) s->fIRQ->disable();s->fTimer->cancelTimeout();
     if (!s->fDelivery.send(frame,[s](const RMI4::Frame &value){return s->emit(value);})) {
         s->fDiagnosticActive=false;s->sample();return kIOReturnIOError;
     }
@@ -235,7 +278,7 @@ IOReturn SynapticsTouch::power(OSObject *owner,void *state,void *,void *,void *)
     } else {
         if (self->fDiagnosticTimer) self->fDiagnosticTimer->cancelTimeout();
         self->fDiagnosticActive=false;
-        self->fRunning=false;self->fIRQ->disable();self->fTimer->cancelTimeout();
+        self->fRunning=false;if (self->fIRQ) self->fIRQ->disable();self->fTimer->cancelTimeout();
         self->fDelivery.release();self->sample();
     }
     return kIOReturnSuccess;

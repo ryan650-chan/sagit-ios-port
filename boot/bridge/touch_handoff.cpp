@@ -22,9 +22,9 @@ void wr(uint64_t a,uint32_t v) {
 uint64_t nowUS() { uint64_t t,h;__asm__ volatile("mrs %0,cntpct_el0":"=r"(t));__asm__ volatile("mrs %0,cntfrq_el0":"=r"(h));return (t/h)*1000000+(t%h)*1000000/h; }
 void waitUS(unsigned us) {const uint64_t end=nowUS()+us;while(nowUS()<end)__asm__ volatile("yield");}
 uint64_t pin(unsigned p) { return 0x03400000ULL+QcomTLMM::PinBase[p]; }
-uint32_t gccRead(void *,uint32_t r) {return rd(0x00100000+r);}
-void gccWrite(void *,uint32_t r,uint32_t v) {wr(0x00100000+r,v);}
-void gccWait(void *,unsigned us) {waitUS(us);}
+[[maybe_unused]] uint32_t gccRead(void *,uint32_t r) {return rd(0x00100000+r);}
+[[maybe_unused]] void gccWrite(void *,uint32_t r,uint32_t v) {wr(0x00100000+r,v);}
+[[maybe_unused]] void gccWait(void *,unsigned us) {waitUS(us);}
 struct Registers {
     uint32_t lastState=0,lastStatus=0,lastOp=0,lastError=0;
     uint32_t read32(uint32_t r) {return rd(0x0c179000+r);}
@@ -69,6 +69,25 @@ struct Transport {
     void delayMS(unsigned ms) {waitUS(ms*1000);}
 };
 }
+static void touch_settle_rails(void)
+{
+    // blsp_i2c5 function 3 on GPIO87/88, 2 mA, no internal pull: the board
+    // carries the external pulls.
+    bridge_puts("[Touch rails] I2C pin mux\n");
+    const unsigned busPins[]={87,88};for(unsigned p:busPins)wr(pin(p),3U<<2);
+    // Board fixed avdd enable. Never lower it and never touch the panel rails.
+    bridge_puts("[Touch rails] sensor power\n");
+    wr(pin(50)+4,rd(pin(50)+4)|2);wr(pin(50),0x200);
+    // GPIO125 stays an input with pull-up; QcomGPIO owns its interrupt.
+    wr(pin(125)+8,rd(pin(125)+8)&~1U);wr(pin(125),0x1c3);
+    // The touch-only reset is already low, so this releases it rather than
+    // pulsing it; the shared panel reset on GPIO8 is left alone.
+    bridge_puts("[Touch rails] reset release\n");
+    wr(pin(89)+4,rd(pin(89)+4)|2);wr(pin(89),0x3c3);
+    waitUS(200000);
+    bridge_puts("[Touch rails] settled\n");
+}
+
 extern "C" int bridge_touch_prepare(EFI_BOOT_SERVICES *bs,void *tree) {
     uint32_t bytes=0,h[4];
     busVersion=dt_property(tree,"i2c@c179000","qcom,i2c-handoff",&bytes);
@@ -84,35 +103,16 @@ extern "C" int bridge_touch_prepare(EFI_BOOT_SERVICES *bs,void *tree) {
     EFI_GUID guid=EFI_CPU_ARCH_PROTOCOL_GUID;EFI_CPU_ARCH_PROTOCOL *cpu=nullptr;
     if(EFI_ERROR(bs->LocateProtocol(&guid,nullptr,reinterpret_cast<void **>(&cpu))) || !cpu || !cpu->SetMemoryAttributes)return -5;
     if(EFI_ERROR(cpu->SetMemoryAttributes(cpu,0x0c179000,4096,EFI_MEMORY_UC|EFI_MEMORY_XP)))return -6;
-    prepared=true;return 0;
+    prepared=true;
+    touch_settle_rails();
+    // The kernel driver decides whether the sensor really answers, so the
+    // handoff is published as enabled once the rails are up.
+    uint32_t version=1;memcpy(touchVersion,&version,4);memcpy(busVersion,&version,4);
+    bridge_puts("[Touch handoff] rails settled; bus, clocks and RMI stay with the kernel\n");
+    return 0;
 }
 extern "C" int bridge_touch_finalize(void) {
-    if(!prepared)return -1;
-    GCC::Controller gcc;
-    Registers registers;QUPI2C::Engine<Registers> engine{registers};Transport transport{engine,registers};
-    if(!gcc.setIO({nullptr,gccRead,gccWrite,gccWait}) || !gcc.allowClock(37) || !gcc.allowClock(46) ||
-       !gcc.allowRate(8,19200000) || !gcc.initialize())return -2;
-    if(gcc.setRate(8,19200000)!=GCC::Success || gcc.clock(37,true)!=GCC::Success || gcc.clock(46,true)!=GCC::Success)return -3;
-    // blsp_i2c5 function 3, 2mA, no internal pull; board has external pulls.
-    const unsigned busPins[]={87,88};for(unsigned p:busPins)wr(pin(p),3U<<2);
-    // Board fixed avdd enable (boot-on). Never lower it or GPIO8/panel rails.
-    wr(pin(50)+4,rd(pin(50)+4)|2);wr(pin(50),0x200);
-    // GPIO125 is input/pull-up; its interrupt is left masked for QcomGPIO.
-    wr(pin(125)+8,rd(pin(125)+8)&~1U);wr(pin(125),0x1c3);
-    // Release the already-low touch-only reset; no pulse of shared panel GPIO8.
-    wr(pin(89)+4,rd(pin(89)+4)|2);wr(pin(89),0x3c3);waitUS(200000);
-    bridge_puts("[Touch prepare] QUP-version=");bridge_hex(registers.read32(QUPI2C::Version));
-    bridge_puts(" mode=");bridge_hex(registers.read32(QUPI2C::Mode));
-    bridge_puts(" GPIO87=");bridge_hex(rd(pin(87)+4));bridge_puts(" GPIO88=");bridge_hex(rd(pin(88)+4));
-    bridge_puts(" GPIO50=");bridge_hex(rd(pin(50)+4));bridge_puts(" GPIO89=");bridge_hex(rd(pin(89)+4));bridge_puts("\n");
-    if(gcc.rate(46)!=19200000 || !engine.configure(19200000,busHz))return -4;
-    RMI4::Device<Transport> sensor{transport};auto result=sensor.initialize();
-    bridge_puts("[Touch RMI] result=");bridge_hex(unsigned(result));
-    bridge_puts(" product=");bridge_puts(sensor.product);bridge_puts(" function=");bridge_hex(sensor.function());
-    bridge_puts(" max-x=");bridge_hex(sensor.maxX);bridge_puts(" max-y=");bridge_hex(sensor.maxY);bridge_puts("\n");
-    if(result!=RMI4::Result::Success)return -5;
-    if(!sensor.restore())return -6;
-    uint32_t version=1;memcpy(touchVersion,&version,4);memcpy(busVersion,&version,4);
-    bridge_puts("[Touch handoff] QUP5 and native RMI verified; display rails retained, panel reset untouched\n");
+    // Nothing is left for EFI: the clocks and the QUP engine belong to
+    // QcomI2C, which starts from the kernel and can log its own failures.
     return 0;
 }
