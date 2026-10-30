@@ -68,8 +68,32 @@ CX/MX policy corners`、`GPU NoC budget exceeds RPM policy`、
 |---|---|---|
 | `a530_pm4.fw` | linux-firmware `qcom/` | ✅ 已下载（19,572 字节） |
 | `a530_pfp.fw` | linux-firmware `qcom/` | ✅ 已下载（16,144 字节） |
-| `a540_gpmu.fw2` | MIUI ROM 的 system/vendor 镜像 | ⏳ 从 V11.0.5.0.PCACNXM recovery ROM 提取 |
-| `a540_zap.mdt`（+ 签名分段） | 同上 | ⏳ 同上 |
+| `a540_gpmu.fw2` | MIUI ROM 的 `/vendor/firmware` | ✅ 已提取（11,736 字节） |
+| `a540_zap.mdt` + `b00/b01/b02` + `.elf` | 同上 | ✅ 已提取（6,684 + 148 + 6,536 + 4,916 + 17,204） |
+
+提取方式（2026-10-31 实测）：
+
+```sh
+unzip -p miui_MI6_V11.0.5.0.PCACNXM_996ffd2660_9.0.zip system.new.dat.br > system.new.dat.br
+python3 brotli_dec.py system.new.dat.br system.new.dat     # 走系统 libbrotlidec
+python3 sdat2img.py system.transfer.list system.new.dat system.img   # 约 9 分钟
+debugfs -R "dump /vendor/firmware/a540_gpmu.fw2 out.fw" system.img
+```
+
+固件落在 `/vendor/firmware`（不是 `/system/etc/firmware`）。校验值：
+
+```
+a530_pm4.fw    a02c9be11787472d4ab0173ed8552afbde1f31b1e81bcd87adf1fcea97b6115f
+a530_pfp.fw    cc4f2b1cd6b3a9401592e2498ec43b87ba926a23848fa231f417ab08df9c47ba
+a540_gpmu.fw2  57d7653c4dcc1130ac2c31512ec7fbb6348613d4bcd99b9b6221e3f9ee52f535
+a540_zap.mdt   af255cceb96a309f8ee31430b0c8849c7d06dbe338f3d6e7424365d567783717
+a540_zap.b00   5302ecf8978c825bdc9d8455a828a4ac1e1d762cf09ff821f9f506fb89a549e5
+a540_zap.b01   d6436b7661b2d78f4a9f614aad91078a5814e723e2e00e1828c6ca7d50cad8e5
+a540_zap.b02   997933766e93f7692329f397808f8c23128a58b565d6305e48608cfce711e5d7
+a540_zap.elf   bddc06814c76158f6bd014c665aa870f0976e2eda6614d92e15bc4982d24fc91
+```
+
+固件不进仓库（厂商签名二进制），本机留在 `D:\sagit-tools\gpu-fw\`。
 
 解包链：`unzip` → `system.new.dat.br` 用系统 `libbrotlidec`（`~/miui/brotli_dec.py`）
 → `~/miui/sdat2img.py` → `debugfs -R "dump ..."`。
