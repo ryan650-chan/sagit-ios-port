@@ -4,14 +4,30 @@
 / {
     // XNU exposes model as hw.product/hw.machine. Native iOS 18
     // MobileGestalt classifies its prefix; unknown names fall back to iPod.
-    // This is a custom product identifier, not an Apple hardware profile.
-    model = "iPhoneMi6,1";
+    // iPhone10,3 is an iPhone X: gesture navigation, no Home button, which is
+    // what this body needs -- the lock screen otherwise waits for a Home press
+    // that cannot be forged from the button HID device.
+    model = "iPhone10,3";
     compatible = "xiaomi,sagit", "qcom,msm8998";
     target-type = "SDM835";
     platform-name = "SDM835";
+    // v104: identity strings shown by Settings > General > About. The platform
+    // expert uses IOPlatformSerialNumber verbatim, which avoids its packed
+    // serial-number decoder (that one reads bytes 13..20).
+    IOPlatformSerialNumber = "RYAN650";
+    regulatory-model-number = "sagit";
     product {
-        product-name = "Xiaomi Mi 6";
+        product-name = "@Ryan650";
         product-soc-name = "Qualcomm Snapdragon 835";
+    };
+    // SpringBoard asks BSPlatform.homeButtonType: 2 means there is no
+    // mechanical home button, so the lock screen offers the swipe gesture.
+    // button-names omits "menu" for the same reason; this body has no Home key.
+    buttons {
+        compatible = "buttons";
+        device_type = "buttons";
+        button-names = "hold", "voldown", "volup";
+        home-button-type = <2>;
     };
     // Backed by the volatile CHRP snapshot passed inline in chosen by the bridge.
     options {};
@@ -34,7 +50,7 @@
         amfi-only-platform-code = <1>;
         dram-base = /bits/ 64 <0>;
         dram-size = /bits/ 64 <0>;
-        bootargs = "-v serial=3 debug=0x14a keepsyms=1 disable-uart-irq=1 mirror-console=1 cpus=4";
+        bootargs = "-v serial=3 debug=0x14a keepsyms=1 disable-uart-irq=1 mirror-console=1 cpus=8";
         firmware-version = "MI6 XNU bridge";
         /* The firmware ChipInfo protocol overrides both when present. A zero
          * here is fatal for userland: IOPlatformUUID becomes unstable, so
@@ -112,4 +128,11 @@
         // app packets and grants only these pins and BLSP2 QUP6 clocks.
         status = "disabled";
     };
+};
+
+// v105: first GPU milestone. No handoff profile and no firmware, so the driver
+// publishes its diagnostic service and refuses submission; that is enough to
+// prove the kexts link and match above the device tree.
+&gpu {
+    status = "okay";
 };
