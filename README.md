@@ -11,22 +11,61 @@
 
 ---
 
-## 当前状态（2026-10-29）
+## 当前状态（2026-10-31）
 
 | 阶段 | 状态 |
 |---|---|
-| XNU 启动 | ✅ 16K 页、6 核 A55、GICv3、UART + 帧缓冲控制台 |
+| XNU 启动 | ✅ 16K 页、8 核、GICv3、UART + 帧缓冲控制台 |
 | 存储 | ✅ 自建 APFS 数据卷（挂在 `/private/var`，可读写）+ UFS 驱动 |
 | 用户态启动 | ✅ launchd → 各守护进程 |
 | 显示 | ✅ 1080×1920 DSI 面板，软件 CoreAnimation，**已确认有帧提交** |
-| SpringBoard | ✅ 运行并绘制锁屏 |
+| SpringBoard | ✅ 运行，**可进入桌面**（图标 + Dock） |
 | 触摸 | ✅ Synaptics S3330 / RMI4 F12，10 点触控，物理点击与滑动可用 |
-| 解锁 | ❌ 停在 “Press Home to open”；机身无 Home 键，正在想办法代偿 |
-| Wi-Fi / 蓝牙 / 蜂窝 / 音频 / 摄像头 / GPU | ❌ 未实现 |
+| 设置向导 | ✅ 已跳过（`--development-hactivation`，见下） |
+| 身份 | ✅ 机型 iPhone10,3 + 手势锁屏；序列号/型号可改 |
+| CPU 调频 | ❌ 固定频率；OSM 试过会停在 300 MHz 辅助时钟，已回退 |
+| GPU | 🟡 kext 已进内核、IOGPU 服务已发布；硬件提交未做 |
+| Wi-Fi / 蓝牙 / 蜂窝 / 音频 / 摄像头 | ❌ 未实现 |
 
-启动后会停在锁屏界面。屏幕能显示、能出帧、能响应触摸，但进不了桌面。
+系统启动约 93 秒出第一帧，随后直接进桌面，不再停留在锁屏或设置向导。
 
 ---
+
+## 2026-10-31 进展：从"卡在锁屏"到"能进桌面"
+
+这一轮的结论都推翻了之前的假设，值得单独记下来。
+
+1. **设置向导不是偏好问题，是激活问题。** 之前往
+   `com.apple.purplebuddy.plist` 写 `SetupDone` 一直无效：文件确实被写进去了，
+   但 cfprefsd 用它自己的内存态把整个域覆盖回去（实测文件从 340 字节缩成 180 字节）。
+   真正的门槛是**设备未激活**——未激活的设备，设置向导会强制要求联网，界面上只有
+   "连接 Wi-Fi" 和 "连接 Mac 或 PC"，没有跳过项。解法是桥接加
+   `--development-hactivation`（需要同时 `--development-legacy-data`），它把
+   `/chosen` 的四元组写成开发用激活状态；激活一通过，向导就不再出现。
+2. **EventTiming profile。** 过掉向导后 UIKit 会弹 "Misconfigured Device"：
+   缺 `/System/Library/EventTimingProfiles/<target-type>.DEFAULT.plist`（我们
+   `target-type=SDM835`）。系统卷只读，所以开机时把空字典 plist 写进 Data 卷，
+   再用 bindfs union 叠到系统目录上，弹窗消失。
+3. **`/buttons` 决定锁屏形态。** 设备树里 `home-button-type = <2>` 且
+   `button-names` 不含 `menu` 时，锁屏从"按主屏幕键打开"变成手势锁屏
+   （底部出现手势横条），配合机型 `iPhone10,3` 一致。
+4. **身份字符串。** 序列号走 `IOPlatformSerialNumber`（绕开内核那个按 Apple
+   二进制布局解析 `serial-number` 的旧解析器，它会读越界）；型号用
+   `regulatory-model-number`，名称用 `product-name`。
+5. **GPU 里程碑 A。** `QcomGPU` / `QcomGPUCC` / `QcomSCM` / `QcomRPM` 编进内核，
+   设备树 `gpu@5000000` 打开（无交接，只发布诊断服务）。真机日志确认
+   `QcomGPU: native IOGPUScheduler + IOGPUWorkQueue enabled`，四个 kext 全部加载。
+   硬件提交还需要 GPU 固件（`a530_pm4.fw`、`a530_pfp.fw`、`a540_gpmu.fw2`、
+   `a540_zap.mdt`）+ 一份 `--gpu-handoff-profile` 策略。
+6. **CPU。** `cpus=4` → `cpus=8`，首帧从 ~128 秒降到 ~93 秒。接了 `QcomOSM`
+   反而慢 7 倍（两簇停在 300 MHz 辅助时钟），已回退；做对需要补 SAW 板级初始化。
+
+**构建依赖提醒**：GPU kext 需要**主机 LLVM 23**（`tools/gpu-compiler/AIR.cpp` 读
+Apple AIR 位码），并且要一份 Mesa 24.3.4 源码树编 IR3；这两样是一次性准备，
+之后走缓存。
+
+---
+
 
 ## 它是怎么跑起来的
 
