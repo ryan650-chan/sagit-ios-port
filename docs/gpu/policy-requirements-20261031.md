@@ -38,9 +38,9 @@
 
 | 字段 | 来源 |
 |---|---|
-| `rpm_domains` | MSM8998 的 CX / MX / EBI 电压域在 RPM 里的资源与 corner 表（下游 `msm8998.dtsi` 的 `rpm-regulator`/rpmpd 节点） |
-| `rpm_clocks` / `rpm_clock_limits` | RPM 时钟命名空间（27 条时钟、12 条限制，身份 0..8、12、19、26） |
-| `rpm_interconnect` | RPM 互联八条；驱动里已内置 `0x2000 aggr1`、`0x2001 SNOC`、`0x2002 BIMC` 与四条 A1NoC/SNOC/BIMC/EBI 路由 |
+| `rpm_domains` | `drivers/power/QcomRPM/RPMRegulators.h`（vddcx/vddmx/ssccx/sscmx 的 level 语义）配合下游 `msm8998.dtsi` 的 rpm-regulator corner 表；这是唯一还需要外部参考的一项 |
+| `rpm_clocks` / `rpm_clock_limits` | 本仓库 `drivers/power/QcomRPM/RPMClockHandoff.h` 已有 27 条时钟的资源表（A1NoC/A2NoC/BIMC/SNOC/CNOC/MMSS NoC/XO/PCNoC/CE/DIV1-3/IPA/LN BB 系列/QDSS…），按索引抄成 `[index, active, sleep]` 即可 |
+| `rpm_interconnect` | 本仓库 `drivers/power/QcomRPM/RPMInterconnect.h` 已有八条：`0x2000 aggr1`、`0x2001 SNOC`、`0x2002 BIMC`，以及 `0x2100..0x2104` 的 A1NoC→SNOC、SNOC→BIMC、EBI 路由 |
 | `iova_*` | 给 GPU 的空闲 IOVA 窗口；构造时要求为空且与保留页表不重叠 |
 | `average/peak_bandwidth` | GPU 的 BIMC 平均/峰值需求，必须落在 interconnect 上限之内 |
 | `firmware_power` | GPU 冷启动目标 OPP（频率 + PM8005 S1 电压） |
