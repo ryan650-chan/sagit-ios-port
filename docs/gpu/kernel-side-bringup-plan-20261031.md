@@ -64,3 +64,45 @@ CP 启动全部在内核驱动里完成。**
 - 任何阶段失败只回退该阶段，v106 镜像始终保留；
 - 判断标准：XNU 能进桌面（证明上电没搞坏系统）→ GPU 服务可用（IORegistry）→
   提交自检 → 合成帧。
+
+## 增量 A 结果（2026-10-31 13:15，v110）
+
+在内核里通过 `ClockControllerRequest` 只读探测，四个控制器全部可查询：
+
+```
+controller=2 (RPM)  caps=0x68
+controller=5 (GPUCC) caps=0x267   Clocks|Domains|Resets|Reporting|UserAccess|RetainedGPUState
+controller=3 (SPMI) caps=0x68
+controller=1 (GCC)  caps=0x2e7
+```
+
+GPU 当前状态（未上电）：
+
+```
+gpucc clock=3 gfx3d_clk_src  rate=9600000     (9.6 MHz 辅助时钟)
+gpucc clock=7 gfx3d_clk      rate=9600000
+gpucc clock=4/8 rbbmtimer    rate=19200000
+gpucc clock=5/9 gfx3d_isense rate=19200000
+gpucc domain=1 state=0        (关)
+gpucc domain=2 state=0        (关)
+```
+
+结论：**内核能指挥这套时钟/电源子系统**；GPU 从未被上电（9.6 MHz + 域关闭），
+这解释了为什么 EFI 冷启动对前置状态那么苛刻。
+
+## 增量 B 设计：把桥里的 PowerStartup 搬进 kext
+
+`boot/bridge/gpu_power.h` 里的 `PowerStartup` 就是完整的 a5xx 冷启动序列
+（RPM 供电 → GCC gates → GPUCC configure/initialize → CX/GX 域 → Fabia PLL →
+CRC → 目标 OPP），它依赖 `GCC::Controller`、`QcomPower::ClockHardware`、
+`RPMRegulators`、`RPMTransport` —— 这些对象在 GCC/RPM 的 kext 里已经存在。
+
+所以做法是：**把这套代码编进 kext，通过平台函数暴露**，由 QcomGPU 按 DT 策略调用。
+好处：同一份经过验证的序列，但失败只在日志里报错，不会挂死 EFI。
+
+需要的改动：
+1. `ClockControllerProtocol.h` 增加一个 GPU 冷启动操作（携带 frequency/cx/mx），
+   并在 `valid()` 里放行；
+2. `QcomGPUCC`（或 GCC 后端）实现该操作，内部复用 `PowerStartup`；
+3. `QcomGPU` 读 DT 策略并调用，逐阶段 `kprintf`；
+4. 桥只保留固件/策略搬运，删除 GPU 时序。
